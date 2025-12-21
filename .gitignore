@@ -1,3 +1,20 @@
+# Day 01: Gitignore for Python projects Setup and initail conttents
+
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/.env
+
+# Frontend
+frontend/node_modules/
+frontend/.env
+
+# General
+.DS_Store
+
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
