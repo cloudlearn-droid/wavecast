@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, app
 from dotenv import load_dotenv
 import os
 
@@ -28,5 +28,8 @@ def create_app():
     # Blueprints (AFTER app exists)
     from app.routes.admin import admin_bp
     app.register_blueprint(admin_bp)
+
+    from app.routes.user import user_bp
+    app.register_blueprint(user_bp)
 
     return app
