@@ -2,6 +2,13 @@ from flask import Blueprint
 from app.models.artist import Artist
 from app.models.album import Album
 from app.models.track import Track
+from flask import request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models.playlist import Playlist
+from app.models.playlist_track import PlaylistTrack
+from app.models.track_like import TrackLike
+from app.models.listening_history import ListeningHistory
+from app.extensions import db
 
 user_bp = Blueprint("user", __name__, url_prefix="/api")
 
@@ -144,3 +151,150 @@ def get_track_details(track_id):
             } if track.album_id else None
         }
     }, 200
+
+
+@user_bp.route("/playlists", methods=["POST"])
+@jwt_required()
+def create_playlist():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+
+    name = data.get("name")
+    if not name:
+        return {"error": "Playlist name is required"}, 400
+
+    playlist = Playlist(
+        user_id=user_id,
+        name=name
+    )
+
+    db.session.add(playlist)
+    db.session.commit()
+
+    return {
+        "message": "Playlist created",
+        "playlist_id": str(playlist.id)
+    }, 201
+
+
+@user_bp.route("/playlists/<playlist_id>/tracks", methods=["POST"])
+@jwt_required()
+def add_track_to_playlist(playlist_id):
+    user_id = get_jwt_identity()
+    data = request.get_json()
+
+    track_id = data.get("track_id")
+    if not track_id:
+        return {"error": "track_id is required"}, 400
+
+    playlist = Playlist.query.filter_by(
+        id=playlist_id,
+        user_id=user_id
+    ).first()
+
+    if not playlist:
+        return {"error": "Playlist not found"}, 404
+
+    exists = PlaylistTrack.query.filter_by(
+        playlist_id=playlist_id,
+        track_id=track_id
+    ).first()
+
+    if exists:
+        return {"error": "Track already in playlist"}, 409
+
+    playlist_track = PlaylistTrack(
+        playlist_id=playlist_id,
+        track_id=track_id
+    )
+
+    db.session.add(playlist_track)
+    db.session.commit()
+
+    return {"message": "Track added to playlist"}, 201
+
+
+@user_bp.route("/playlists/<playlist_id>/tracks/<track_id>", methods=["DELETE"])
+@jwt_required()
+def remove_track_from_playlist(playlist_id, track_id):
+    user_id = get_jwt_identity()
+
+    playlist = Playlist.query.filter_by(
+        id=playlist_id,
+        user_id=user_id
+    ).first()
+
+    if not playlist:
+        return {"error": "Playlist not found"}, 404
+
+    playlist_track = PlaylistTrack.query.filter_by(
+        playlist_id=playlist_id,
+        track_id=track_id
+    ).first()
+
+    if not playlist_track:
+        return {"error": "Track not in playlist"}, 404
+
+    db.session.delete(playlist_track)
+    db.session.commit()
+
+    return {"message": "Track removed from playlist"}, 200
+
+
+@user_bp.route("/tracks/<track_id>/like", methods=["POST"])
+@jwt_required()
+def like_track(track_id):
+    user_id = get_jwt_identity()
+
+    exists = TrackLike.query.filter_by(
+        user_id=user_id,
+        track_id=track_id
+    ).first()
+
+    if exists:
+        return {"error": "Track already liked"}, 409
+
+    like = TrackLike(
+        user_id=user_id,
+        track_id=track_id
+    )
+
+    db.session.add(like)
+    db.session.commit()
+
+    return {"message": "Track liked"}, 201
+
+
+@user_bp.route("/tracks/<track_id>/like", methods=["DELETE"])
+@jwt_required()
+def unlike_track(track_id):
+    user_id = get_jwt_identity()
+
+    like = TrackLike.query.filter_by(
+        user_id=user_id,
+        track_id=track_id
+    ).first()
+
+    if not like:
+        return {"error": "Track not liked"}, 404
+
+    db.session.delete(like)
+    db.session.commit()
+
+    return {"message": "Track unliked"}, 200
+
+
+@user_bp.route("/tracks/<track_id>/play", methods=["POST"])
+@jwt_required()
+def log_track_play(track_id):
+    user_id = get_jwt_identity()
+
+    history = ListeningHistory(
+        user_id=user_id,
+        track_id=track_id
+    )
+
+    db.session.add(history)
+    db.session.commit()
+
+    return {"message": "Listening history logged"}, 201

@@ -14,7 +14,8 @@ def create_app():
     # Config
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = os.getenv("SECRET_KEY")
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_pre_ping": True
@@ -31,5 +32,8 @@ def create_app():
 
     from app.routes.user import user_bp
     app.register_blueprint(user_bp)
+
+    from app.routes.auth import auth_bp
+    app.register_blueprint(auth_bp)
 
     return app
