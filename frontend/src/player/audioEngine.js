@@ -14,28 +14,27 @@ export function initAudio() {
 export function playTrack(url) {
   initAudio();
 
-  // Stop previous track
   if (audioEl) {
     audioEl.pause();
-    audioEl.src = "";
   }
 
   audioEl = new Audio(url);
   audioEl.crossOrigin = "anonymous";
-  audioEl.loop = false;
 
-  // Resume AudioContext (required by browser)
+  // expose for pause control
+  window.__wavecast_audio__ = audioEl;
+
   if (audioCtx.state === "suspended") {
     audioCtx.resume();
   }
 
-  // Connect audio element to analyser
   source = audioCtx.createMediaElementSource(audioEl);
   source.connect(analyser);
   analyser.connect(audioCtx.destination);
 
   audioEl.play();
 }
+
 
 export function getFrequencyData() {
   if (!analyser) return null;
