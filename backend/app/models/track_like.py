@@ -1,27 +1,19 @@
-from sqlalchemy.dialects.postgresql import UUID
 from app.extensions import db
+from datetime import datetime
+import uuid
 
 
 class TrackLike(db.Model):
     __tablename__ = "track_likes"
 
-    user_id = db.Column(
-        UUID(as_uuid=True),
-        db.ForeignKey("users.id"),
-        primary_key=True
-    )
+    id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(db.UUID(as_uuid=True),
+                        db.ForeignKey("users.id"), nullable=False)
+    track_id = db.Column(db.UUID(as_uuid=True),
+                         db.ForeignKey("tracks.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    track_id = db.Column(
-        UUID(as_uuid=True),
-        db.ForeignKey("tracks.id"),
-        primary_key=True
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "track_id",
+                            name="unique_user_track_like"),
     )
-
-    liked_at = db.Column(
-        db.DateTime,
-        server_default=db.func.now(),
-        nullable=False
-    )
-
-    def __repr__(self):
-        return f"<TrackLike user={self.user_id} track={self.track_id}>"

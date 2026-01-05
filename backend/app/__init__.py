@@ -1,56 +1,61 @@
-from flask import Flask
+from flask import Flask, app, jsonify
+from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-from flask_cors import CORS   # ✅ ADD THIS
-
 from app.extensions import db, migrate, jwt
-from app import models
 
 load_dotenv()
 
 
 def create_app():
-    app = Flask(__name__)   # ✅ create app FIRST
+    app = Flask(__name__)
 
-    # ======================
+    # --------------------
     # Config
-    # ======================
+    # --------------------
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+    app.config["JWT_SECRET_KEY"] = os.getenv("SECRET_KEY")
 
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True
-    }
-
-    # ======================
-    # ✅ ENABLE CORS (KEY FIX)
-    # ======================
+    # --------------------
+    # Enable CORS (GLOBAL)
+    # --------------------
     CORS(
         app,
-        resources={r"/api/*": {"origins": "*"}},
+        resources={r"/*": {"origins": "http://localhost:5173"}},
         supports_credentials=True
     )
 
-    # ======================
-    # Extensions
-    # ======================
+    # --------------------
+    # Init extensions
+    # --------------------
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # ======================
-    # Blueprints
-    # ======================
-    from app.routes.admin import admin_bp
-    app.register_blueprint(admin_bp)
+    # --------------------
+    # Health Check Route
+    # --------------------
+    @app.route("/", methods=["GET"])
+    def health():
+        return jsonify({"status": "ok", "service": "WaveCast backend"})
 
-    from app.routes.user import user_bp
-    app.register_blueprint(user_bp)
-
+    # --------------------
+    # Register Blueprints
+    # --------------------
     from app.routes.auth import auth_bp
+    from app.routes.playlists import playlists_bp
+    from app.routes.music import music_bp
+    from app.routes.artists import artists_bp
+    from app.routes.likes import likes_bp
+    from app.routes.albums import albums_bp
+
+    app.register_blueprint(albums_bp)
+    app.register_blueprint(likes_bp)
+    app.register_blueprint(artists_bp)
+    app.register_blueprint(music_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(playlists_bp)
 
     return app

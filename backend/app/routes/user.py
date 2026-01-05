@@ -1,18 +1,22 @@
-from flask import Blueprint
+from uuid import UUID
+from flask import Blueprint, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from app.extensions import db
 from app.models.artist import Artist
 from app.models.album import Album
 from app.models.track import Track
-from flask import request
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.playlist import Playlist
 from app.models.playlist_track import PlaylistTrack
 from app.models.track_like import TrackLike
 from app.models.listening_history import ListeningHistory
-from app.extensions import db
 
 user_bp = Blueprint("user", __name__, url_prefix="/api")
 
 
+# =========================
+# Artists
+# =========================
 @user_bp.route("/artists", methods=["GET"])
 def list_artists():
     artists = (
@@ -35,6 +39,9 @@ def list_artists():
     }, 200
 
 
+# =========================
+# Albums by Artist
+# =========================
 @user_bp.route("/artists/<artist_id>/albums", methods=["GET"])
 def list_albums_by_artist(artist_id):
     artist = Artist.query.filter_by(id=artist_id, is_active=True).first()
@@ -58,13 +65,17 @@ def list_albums_by_artist(artist_id):
                 "id": str(album.id),
                 "title": album.title,
                 "cover_image_url": album.cover_image_url,
-                "release_date": album.release_date.isoformat() if album.release_date else None
+                "release_date": album.release_date.isoformat()
+                if album.release_date else None
             }
             for album in albums
         ]
     }, 200
 
 
+# =========================
+# Tracks by Album
+# =========================
 @user_bp.route("/albums/<album_id>/tracks", methods=["GET"])
 def list_tracks_by_album(album_id):
     album = Album.query.filter_by(id=album_id, is_active=True).first()
@@ -95,6 +106,9 @@ def list_tracks_by_album(album_id):
     }, 200
 
 
+# =========================
+# Tracks by Artist
+# =========================
 @user_bp.route("/artists/<artist_id>/tracks", methods=["GET"])
 def list_tracks_by_artist(artist_id):
     artist = Artist.query.filter_by(id=artist_id, is_active=True).first()
@@ -119,21 +133,20 @@ def list_tracks_by_artist(artist_id):
                 "title": track.title,
                 "audio_url": track.audio_url,
                 "duration_seconds": track.duration_seconds,
-                "album_id": str(track.album_id) if track.album_id else None
+                "album_id": str(track.album_id)
+                if track.album_id else None
             }
             for track in tracks
         ]
     }, 200
 
 
+# =========================
+# Track Details
+# =========================
 @user_bp.route("/tracks/<track_id>", methods=["GET"])
 def get_track_details(track_id):
-    track = (
-        Track.query
-        .filter_by(id=track_id, is_active=True)
-        .first()
-    )
-
+    track = Track.query.filter_by(id=track_id, is_active=True).first()
     if not track:
         return {"error": "Track not found"}, 404
 
@@ -144,7 +157,7 @@ def get_track_details(track_id):
             "audio_url": track.audio_url,
             "duration_seconds": track.duration_seconds,
             "artist": {
-                "id": str(track.artist_id),
+                "id": str(track.artist_id)
             },
             "album": {
                 "id": str(track.album_id)
@@ -153,6 +166,9 @@ def get_track_details(track_id):
     }, 200
 
 
+# =========================
+# Playlists
+# =========================
 @user_bp.route("/playlists", methods=["POST"])
 @jwt_required()
 def create_playlist():
@@ -163,10 +179,7 @@ def create_playlist():
     if not name:
         return {"error": "Playlist name is required"}, 400
 
-    playlist = Playlist(
-        user_id=user_id,
-        name=name
-    )
+    playlist = Playlist(user_id=user_id, name=name)
 
     db.session.add(playlist)
     db.session.commit()
@@ -241,6 +254,9 @@ def remove_track_from_playlist(playlist_id, track_id):
     return {"message": "Track removed from playlist"}, 200
 
 
+# =========================
+# Likes
+# =========================
 @user_bp.route("/tracks/<track_id>/like", methods=["POST"])
 @jwt_required()
 def like_track(track_id):
@@ -254,10 +270,7 @@ def like_track(track_id):
     if exists:
         return {"error": "Track already liked"}, 409
 
-    like = TrackLike(
-        user_id=user_id,
-        track_id=track_id
-    )
+    like = TrackLike(user_id=user_id, track_id=track_id)
 
     db.session.add(like)
     db.session.commit()
@@ -284,10 +297,15 @@ def unlike_track(track_id):
     return {"message": "Track unliked"}, 200
 
 
-@user_bp.route("/tracks/<track_id>/play", methods=["POST"])
+# =========================
+# Listening History
+# =========================
+'''@user_bp.route("/tracks/<track_id>/play", methods=["POST"])
 @jwt_required()
 def log_track_play(track_id):
     user_id = get_jwt_identity()
+
+    print("🔍 log_track_play user_id =", user_id)
 
     history = ListeningHistory(
         user_id=user_id,
@@ -298,3 +316,53 @@ def log_track_play(track_id):
     db.session.commit()
 
     return {"message": "Listening history logged"}, 201
+'''
+
+
+@user_bp.route("/me/likes", methods=["GET"])
+@jwt_required()
+def get_my_likes():
+    user_id = get_jwt_identity()
+
+    likes = TrackLike.query.filter_by(user_id=user_id).all()
+
+    return [
+        {"track_id": str(like.track_id)}
+        for like in likes
+    ], 200
+
+
+'''
+@user_bp.route("/me/history", methods=["GET"])
+@jwt_required()
+def get_my_listening_history():
+    user_id = get_jwt_identity()
+
+    # 🔒 IMPORTANT: convert string → UUID
+    user_uuid = UUID(user_id)
+
+    history = (
+        db.session.query(
+            ListeningHistory.played_at,
+            Track.id.label("track_id"),
+            Track.title.label("track_title"),
+            Artist.name.label("artist_name"),
+        )
+        .join(Track, Track.id == ListeningHistory.track_id)
+        .join(Artist, Artist.id == Track.artist_id)
+        .filter(ListeningHistory.user_id == user_uuid)
+        .order_by(ListeningHistory.played_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    return [
+        {
+            "track_id": row.track_id,
+            "track_title": row.track_title,
+            "artist_name": row.artist_name,
+            "played_at": row.played_at.isoformat(),
+        }
+        for row in history
+    ], 200
+'''
