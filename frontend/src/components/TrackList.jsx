@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { apiGet } from "../config/api";
+import { apiGet, apiPost } from "../config/api";
 import { useAuth } from "../context/AuthContext";
 import { usePlayer } from "../context/PlayerContext";
 import { useLikes } from "../context/LikesContext";
 
-export default function TrackList() {
+export default function TrackList({ selectedPlaylist }) {
   const { token } = useAuth();
   const { setCurrentTrack } = usePlayer();
   const { likedIds, like, unlike, loading } = useLikes();
@@ -15,6 +15,25 @@ export default function TrackList() {
   }, [token]);
 
   if (loading) return <p>Loading likes…</p>;
+
+  const addToPlaylist = async (trackId) => {
+    if (!selectedPlaylist) {
+      alert("Select a playlist first");
+      return;
+    }
+
+    try {
+      await apiPost(
+        `/playlists/${selectedPlaylist.id}/tracks`,
+        { track_id: trackId },
+        token
+      );
+      alert("Added to playlist");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to add to playlist");
+    }
+  };
 
   return (
     <>
@@ -40,11 +59,18 @@ export default function TrackList() {
               ▶ {track.title}
             </span>
 
-            <button
-              onClick={() => (isLiked ? unlike(id) : like(id))}
-            >
-              {isLiked ? "❤️" : "🤍"}
-            </button>
+            <div>
+              <button onClick={() => (isLiked ? unlike(id) : like(id))}>
+                {isLiked ? "❤️" : "🤍"}
+              </button>
+
+              <button
+                style={{ marginLeft: 8 }}
+                onClick={() => addToPlaylist(id)}
+              >
+                ➕
+              </button>
+            </div>
           </div>
         );
       })}

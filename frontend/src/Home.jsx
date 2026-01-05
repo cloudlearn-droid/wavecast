@@ -1,12 +1,25 @@
 import { useState } from "react";
 import TrackList from "./components/TrackList";
 import PlaylistList from "./components/PlaylistList";
+import PlaylistDetail from "./components/PlaylistDetail";
 import ArtistList from "./components/ArtistList";
 import ArtistDetail from "./components/ArtistDetail";
 
 export default function Home() {
-  const [view, setView] = useState("artists");
+  const [view, setView] = useState("home");
+  const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [selectedArtist, setSelectedArtist] = useState(null);
+
+  if (view === "playlist" && selectedPlaylist) {
+    return (
+      <PlaylistDetail
+        playlist={selectedPlaylist}
+        onBack={() => {
+          setView("home");
+        }}
+      />
+    );
+  }
 
   if (view === "artist" && selectedArtist) {
     return (
@@ -14,7 +27,7 @@ export default function Home() {
         artist={selectedArtist}
         onBack={() => {
           setSelectedArtist(null);
-          setView("artists");
+          setView("home");
         }}
       />
     );
@@ -33,11 +46,16 @@ export default function Home() {
 
       <hr />
 
-      <TrackList />
+      <TrackList selectedPlaylist={selectedPlaylist} />
 
       <hr />
 
-      <PlaylistList />
+      <PlaylistList
+        onSelect={(playlist) => {
+          setSelectedPlaylist(playlist);
+          setView("playlist");
+        }}
+      />
     </div>
   );
 }
