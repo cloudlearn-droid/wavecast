@@ -2,61 +2,76 @@ import { useEffect, useState } from "react";
 import { apiGet } from "../config/api";
 import { useAuth } from "../context/AuthContext";
 import { usePlayer } from "../context/PlayerContext";
+import { useLikes } from "../context/LikesContext";
 
-export default function ArtistDetail({ artist, onBack }) {
+export default function ArtistDetails({ artist, onBack }) {
   const { token } = useAuth();
-  const { playTrack } = usePlayer();
+  const { setCurrentTrack } = usePlayer();
+  const { likedIds, like, unlike } = useLikes();
 
   const [tracks, setTracks] = useState([]);
-  const [albums, setAlbums] = useState([]);
 
   useEffect(() => {
+    if (!artist) return;
+
     apiGet(`/artists/${artist.id}/tracks`, token).then(setTracks);
-    apiGet(`/artists/${artist.id}/albums`, token).then(setAlbums);
   }, [artist, token]);
+
+  if (!artist) return null;
 
   return (
     <div>
-      <button onClick={onBack}>← Back</button>
+      <button onClick={onBack}>← Back to Artists</button>
 
       <h2>{artist.name}</h2>
+
+      {artist.image_url && (
+        <img
+          src={artist.image_url}
+          alt={artist.name}
+          style={{
+            width: "200px",
+            height: "200px",
+            objectFit: "cover",
+            borderRadius: "50%",
+          }}
+        />
+      )}
 
       {artist.bio && <p>{artist.bio}</p>}
 
       <h3>Tracks</h3>
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {tracks.map((track) => (
-          <li
-            key={track.id}
-            onClick={() => playTrack(track)}
+
+      {tracks.map((track) => {
+        const id = String(track.id);
+        const isLiked = likedIds.has(id);
+
+        return (
+          <div
+            key={id}
             style={{
-              padding: "8px",
-              borderBottom: "1px solid #ddd",
-              cursor: "pointer",
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: 8,
             }}
           >
-            ▶ {track.title}
-          </li>
-        ))}
-      </ul>
+            <span
+              style={{ cursor: "pointer" }}
+              onClick={() => setCurrentTrack(track)}
+            >
+              ▶ {track.title}
+            </span>
 
-      <h3>Albums</h3>
-      <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
-        {albums.map((album) => (
-          <div key={album.id} style={{ width: "120px" }}>
-            <img
-              src={album.cover_image_url}
-              alt={album.title}
-              style={{
-                width: "120px",
-                height: "120px",
-                objectFit: "cover",
-              }}
-            />
-            <div>{album.title}</div>
+            <button
+              onClick={() =>
+                isLiked ? unlike(id) : like(id)
+              }
+            >
+              {isLiked ? "❤️" : "🤍"}
+            </button>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
