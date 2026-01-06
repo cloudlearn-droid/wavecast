@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { usePlayer } from "../context/PlayerContext";
+import SimpleVisualizer from "./SimpleVisualizer";
 
 export default function PlayerBar() {
   const { currentTrack, audioRef } = usePlayer();
@@ -51,6 +52,7 @@ export default function PlayerBar() {
         borderTop: "1px solid #ddd",
       }}
     >
+      <SimpleVisualizer />
       <strong>{currentTrack.title}</strong>
 
       {/* ✅ Single source of truth */}
