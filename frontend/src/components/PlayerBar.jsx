@@ -1,50 +1,32 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { usePlayer } from "../context/PlayerContext";
 
 export default function PlayerBar() {
-  const { currentTrack } = usePlayer();
-  const audioRef = useRef(null);
+  const { currentTrack, audioRef } = usePlayer();
 
-  // 🔁 Restore time AFTER audio loads
+  // Restore time on refresh
   useEffect(() => {
-    if (!currentTrack) return;
+    if (!currentTrack || !audioRef.current) return;
 
     const saved = localStorage.getItem("wavecast-player");
     if (!saved) return;
 
     const { time } = JSON.parse(saved);
-    const audio = audioRef.current;
+    if (time != null) {
+      audioRef.current.currentTime = time;
+    }
+  }, [currentTrack, audioRef]);
 
-    if (!audio || time == null) return;
-
-    const onLoaded = () => {
-      audio.currentTime = time;
-    };
-
-    audio.addEventListener("loadedmetadata", onLoaded);
-
-    return () => {
-      audio.removeEventListener("loadedmetadata", onLoaded);
-    };
-  }, [currentTrack]);
-
-  // 💾 Persist time while playing
+  // Persist time
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentTrack) return;
 
-    const save = () => {
-      const saved = localStorage.getItem("wavecast-player");
-      const prev = saved ? JSON.parse(saved) : {};
-
+    const save = () =>
       localStorage.setItem(
         "wavecast-player",
-        JSON.stringify({
-          ...prev,
-          time: audio.currentTime,
-        })
+        JSON.stringify({ time: audio.currentTime })
       );
-    };
 
     audio.addEventListener("timeupdate", save);
     audio.addEventListener("pause", save);
@@ -53,7 +35,7 @@ export default function PlayerBar() {
       audio.removeEventListener("timeupdate", save);
       audio.removeEventListener("pause", save);
     };
-  }, [currentTrack]);
+  }, [currentTrack, audioRef]);
 
   if (!currentTrack) return null;
 
@@ -65,12 +47,13 @@ export default function PlayerBar() {
         left: 0,
         right: 0,
         padding: 12,
-        borderTop: "1px solid #ddd",
         background: "#fff",
+        borderTop: "1px solid #ddd",
       }}
     >
       <strong>{currentTrack.title}</strong>
 
+      {/* ✅ Single source of truth */}
       <audio
         ref={audioRef}
         src={currentTrack.audio_url}

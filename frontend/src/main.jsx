@@ -7,12 +7,12 @@ import { LikesProvider } from "./context/LikesContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AuthProvider>
-      <LikesProvider>
-        <PlayerProvider>
+    <PlayerProvider>
+      <AuthProvider>
+        <LikesProvider>
           <App />
-        </PlayerProvider>
-      </LikesProvider>
-    </AuthProvider>
+        </LikesProvider>
+      </AuthProvider>
+    </PlayerProvider>
   </React.StrictMode>
 );

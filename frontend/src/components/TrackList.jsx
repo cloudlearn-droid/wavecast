@@ -6,7 +6,7 @@ import { useLikes } from "../context/LikesContext";
 
 export default function TrackList({ selectedPlaylist }) {
   const { token } = useAuth();
-  const { setCurrentTrack } = usePlayer();
+  const { playTrack } = usePlayer(); // ✅ CORRECT API
   const { likedIds, like, unlike, loading } = useLikes();
   const [tracks, setTracks] = useState([]);
 
@@ -54,7 +54,7 @@ export default function TrackList({ selectedPlaylist }) {
           >
             <span
               style={{ cursor: "pointer" }}
-              onClick={() => setCurrentTrack(track)}
+              onClick={() => playTrack(track)} // ✅ FIX
             >
               ▶ {track.title}
             </span>

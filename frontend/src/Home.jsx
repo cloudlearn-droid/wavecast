@@ -4,19 +4,19 @@ import PlaylistList from "./components/PlaylistList";
 import PlaylistDetail from "./components/PlaylistDetail";
 import ArtistList from "./components/ArtistList";
 import ArtistDetail from "./components/ArtistDetail";
+import { useAuth } from "./context/AuthContext";
 
 export default function Home() {
   const [view, setView] = useState("home");
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [selectedArtist, setSelectedArtist] = useState(null);
+  const { logout } = useAuth();
 
   if (view === "playlist" && selectedPlaylist) {
     return (
       <PlaylistDetail
         playlist={selectedPlaylist}
-        onBack={() => {
-          setView("home");
-        }}
+        onBack={() => setView("home")}
       />
     );
   }
@@ -34,8 +34,11 @@ export default function Home() {
   }
 
   return (
-    <div style={{ paddingBottom: 120 }}>
-      <h1>WaveCast</h1>
+    <div style={{ paddingBottom: 140 }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <h1>WaveCast</h1>
+        <button onClick={logout}>Logout</button>
+      </div>
 
       <ArtistList
         onSelect={(artist) => {
@@ -46,13 +49,14 @@ export default function Home() {
 
       <hr />
 
+      {/* ✅ TrackList now receives active playlist */}
       <TrackList selectedPlaylist={selectedPlaylist} />
 
       <hr />
 
       <PlaylistList
         onSelect={(playlist) => {
-          setSelectedPlaylist(playlist);
+          setSelectedPlaylist(playlist); // 🔒 persist
           setView("playlist");
         }}
       />

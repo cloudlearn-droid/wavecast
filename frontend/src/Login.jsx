@@ -2,48 +2,83 @@ import { useState } from "react";
 import { useAuth } from "./context/AuthContext";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, signup } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState("login"); // login | signup
+  const [error, setError] = useState("");
 
-  const submit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    const res = await fetch("http://127.0.0.1:5000/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      login(data.access_token, data.user);
-    } else {
-      alert(data.error || "Login failed");
+    try {
+      if (mode === "login") {
+        await login(email, password);
+      } else {
+        await signup(email, password);
+        alert("Signup successful. Please login.");
+        setMode("login");
+      }
+    } catch (err) {
+      setError(err?.message || "Authentication failed");
     }
   };
 
   return (
-    <div style={{ padding: 40 }}>
-      <h2>WaveCast Login</h2>
+    <div
+      style={{
+        maxWidth: 400,
+        margin: "100px auto",
+        padding: 20,
+        border: "1px solid #ddd",
+        borderRadius: 6,
+      }}
+    >
+      <h2>{mode === "login" ? "Login" : "Sign Up"}</h2>
 
-      <form onSubmit={submit}>
+      <form onSubmit={handleSubmit}>
         <input
+          type="email"
           placeholder="Email"
           value={email}
+          required
           onChange={(e) => setEmail(e.target.value)}
+          style={{ width: "100%", marginBottom: 10 }}
         />
-        <br />
+
         <input
           type="password"
           placeholder="Password"
           value={password}
+          required
           onChange={(e) => setPassword(e.target.value)}
+          style={{ width: "100%", marginBottom: 10 }}
         />
-        <br />
-        <button type="submit">Login</button>
+
+        {error && (
+          <div style={{ color: "red", marginBottom: 10 }}>{error}</div>
+        )}
+
+        <button type="submit" style={{ width: "100%" }}>
+          {mode === "login" ? "Login" : "Sign Up"}
+        </button>
       </form>
+
+      <div style={{ marginTop: 10, textAlign: "center" }}>
+        {mode === "login" ? (
+          <span>
+            New user?{" "}
+            <button onClick={() => setMode("signup")}>Sign up</button>
+          </span>
+        ) : (
+          <span>
+            Already have an account?{" "}
+            <button onClick={() => setMode("login")}>Login</button>
+          </span>
+        )}
+      </div>
     </div>
   );
 }

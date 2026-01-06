@@ -1,53 +1,56 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { apiPost } from "../config/api";
+import { usePlayer } from "./PlayerContext";
 
-const AuthContext = createContext(null);
-
-const STORAGE_KEY = "wavecast_auth";
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
 
-  // =========================
-  // RESTORE AUTH ON LOAD
-  // =========================
+  // 🔑 access player reset safely
+  const { resetPlayer } = usePlayer();
+
+  /* =========================
+     INIT FROM STORAGE
+  ========================= */
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        const data = JSON.parse(raw);
-        setToken(data.token);
-        setUser(data.user);
-      } catch {}
-    }
     setLoading(false);
   }, []);
 
-  const login = (token, user) => {
-    setToken(token);
-    setUser(user);
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ token, user })
-    );
+  /* =========================
+     LOGIN
+  ========================= */
+  const login = async (email, password) => {
+    const res = await apiPost("/auth/login", { email, password });
+    localStorage.setItem("token", res.access_token);
+    setToken(res.access_token);
   };
 
+  /* =========================
+     SIGNUP
+  ========================= */
+  const signup = async (email, password) => {
+    await apiPost("/auth/signup", { email, password });
+  };
+
+  /* =========================
+     LOGOUT (SAFE)
+  ========================= */
   const logout = () => {
+    localStorage.removeItem("token");
     setToken(null);
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("wavecast_player_state");
+    resetPlayer(); // 🔒 stops audio + clears queue + clears player state
   };
 
   return (
     <AuthContext.Provider
       value={{
         token,
-        user,
-        login,
-        logout,
         loading,
+        login,
+        signup,
+        logout,
         isAuthenticated: !!token,
       }}
     >

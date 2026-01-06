@@ -1,40 +1,136 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 const PlayerContext = createContext();
 
 export function PlayerProvider({ children }) {
-  const [currentTrack, setCurrentTrack] = useState(null);
+  const audioRef = useRef(null);
 
-  // 🔁 Restore full track on refresh
+  const [currentTrack, setCurrentTrack] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [queue, setQueue] = useState([]);
+  const [queueIndex, setQueueIndex] = useState(0);
+  const [activePlaylist, setActivePlaylist] = useState(null);
+
+  /* =========================
+     RESTORE FROM STORAGE
+  ========================= */
   useEffect(() => {
     const saved = localStorage.getItem("wavecast-player");
     if (!saved) return;
 
-    const parsed = JSON.parse(saved);
-    if (parsed.track) {
-      setCurrentTrack(parsed.track);
-    }
+    try {
+      const { track, time } = JSON.parse(saved);
+      if (!track || !audioRef.current) return;
+      audioRef.current.src = track.audio_url;
+
+    const onLoaded = () => {
+      audioRef.current.currentTime = time || 0;
+    };
+
+    audioRef.current.addEventListener("loadedmetadata", onLoaded);
+    setCurrentTrack(track);
+    setIsPlaying(false); // do NOT autoplay on refresh
+
+    return () => {
+      audioRef.current?.removeEventListener("loadedmetadata", onLoaded);
+    };
+   } catch {}
   }, []);
 
-  // 💾 Persist full track when changed
+  /* =========================
+     LOAD TRACK
+  ========================= */
   useEffect(() => {
-    if (!currentTrack) return;
+    if (!audioRef.current || !currentTrack) return;
 
-    const saved = localStorage.getItem("wavecast-player");
-    const prev = saved ? JSON.parse(saved) : {};
+    audioRef.current.src = currentTrack.audio_url;
+    audioRef.current.load();
 
-    localStorage.setItem(
-      "wavecast-player",
-      JSON.stringify({
-        ...prev,
-        track: currentTrack,
-      })
-    );
+    if (isPlaying) {
+      audioRef.current.play().catch(() => {});
+    }
   }, [currentTrack]);
 
+  /* =========================
+     PLAY / PAUSE
+  ========================= */
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    isPlaying
+      ? audioRef.current.play().catch(() => {})
+      : audioRef.current.pause();
+  }, [isPlaying]);
+
+  /* =========================
+     AUTO NEXT
+  ========================= */
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onEnded = () => {
+      if (queue.length > 0 && queueIndex < queue.length - 1) {
+        const next = queueIndex + 1;
+        setQueueIndex(next);
+        setCurrentTrack(queue[next]);
+        setIsPlaying(true);
+      } else {
+        setIsPlaying(false);
+      }
+    };
+
+    audio.addEventListener("ended", onEnded);
+    return () => audio.removeEventListener("ended", onEnded);
+  }, [queue, queueIndex]);
+
+  /* =========================
+     ACTIONS
+  ========================= */
+  const playTrack = (track) => {
+    setQueue([]);
+    setQueueIndex(0);
+    setCurrentTrack(track);
+    setIsPlaying(true);
+  };
+
+  const playPlaylist = (tracks) => {
+    if (!tracks?.length) return;
+    setQueue(tracks);
+    setQueueIndex(0);
+    setCurrentTrack(tracks[0]);
+    setIsPlaying(true);
+  };
+
+  const resetPlayer = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+    setCurrentTrack(null);
+    setQueue([]);
+    setQueueIndex(0);
+    setIsPlaying(false);
+    setActivePlaylist(null);
+    localStorage.removeItem("wavecast-player");
+  };
+
   return (
-    <PlayerContext.Provider value={{ currentTrack, setCurrentTrack }}>
+    <PlayerContext.Provider
+      value={{
+        audioRef,
+        currentTrack,
+        isPlaying,
+        setIsPlaying,
+        playTrack,
+        playPlaylist,
+        resetPlayer,
+        activePlaylist,
+        setActivePlaylist,
+      }}
+    >
       {children}
+      <audio ref={audioRef} />
     </PlayerContext.Provider>
   );
 }
